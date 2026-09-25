@@ -39,3 +39,12 @@ html {
   background: #6366f150;
   color: #e0e7ff;
 }
+
+/* Lenis drives scrolling in 3D mode; native smooth scroll would fight it. */
+html.lenis {
+  scroll-behavior: auto;
+}
+
+@utility font-display {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+}

@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# source art (FBX exports, mockups); the site uses the optimized files in public/
+/images/
