@@ -5,6 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { levels } from "@/data/resume";
+import { frameAt, road, roadSide, stageFrames, toWorld } from "./path";
 
 // KayKit kingdom backdrop (CC0, Kay Lousberg): hex-tile terrain with a road along the level run, a row of
 // Medieval Hexagon buildings, a forest, a river and mountains, plus props on each stage.
@@ -17,9 +18,6 @@ const HEX = 4;
 // The tiles are pointy-top hexes with a 1.1 circumradius on top (their base flares a little wider).
 const TILE_W = Math.sqrt(3) * 1.1 * HEX;
 const ROW = 1.5 * 1.1 * HEX;
-const ROAD_Z = 2.1; // puts the road strip under the hero (z 2.5)
-const X_MIN = -64;
-const X_MAX = 236;
 
 // deterministic scatter so the world is the same on every load
 function rng(seed: number) {
@@ -138,8 +136,8 @@ function Sun() {
   useFrame(({ camera }) => {
     const l = light.current;
     if (!l) return;
-    l.position.set(camera.position.x - 8, 16, 8);
-    l.target.position.set(camera.position.x, 0, -2);
+    l.position.set(camera.position.x - 8, 16, camera.position.z - 3);
+    l.target.position.set(camera.position.x, 0, camera.position.z - 13);
     l.target.updateMatrixWorld();
   });
   return (
@@ -207,6 +205,8 @@ const BUILDINGS = [
 ];
 const TREES = ["Tree_1_A", "Tree_1_B", "Tree_2_A", "Tree_2_C", "Tree_3_A", "Tree_4_A", "Tree_4_B"];
 const SMALL = ["Bush_1_A", "Bush_2_A", "Bush_4_A", "Grass_1_A", "Grass_2_A", "Rock_1_A", "Rock_1_J"];
+const PLANTS = SMALL.filter((n) => !n.startsWith("Rock"));
+const GRASS = SMALL.filter((n) => n.startsWith("Grass"));
 const HILLS = ["hills_A_trees", "hills_B_trees", "hills_C_trees"];
 const MOUNTAINS = ["mountain_A_grass_trees", "mountain_B_grass_trees", "mountain_C_grass_trees"];
 
@@ -251,60 +251,158 @@ const STAGE_PROPS: Record<string, [string, Item][]> = {
   ],
 };
 
-export default function Village({ spacing }: { spacing: number }) {
+// The river crosses the road between the Cashier Counter and Night Drive; the road becomes a bridge there.
+const RIVER: [number, number][] = [
+  [64, 40],
+  [68, 8],
+  [73, -14],
+  [75, -28],
+  [84, -46],
+  [100, -76],
+  [112, -110],
+];
+function distToRiver(x: number, z: number) {
+  let best = Infinity;
+  for (let k = 0; k < RIVER.length - 1; k++) {
+    const [ax, az] = RIVER[k];
+    const [bx, bz] = RIVER[k + 1];
+    const dx = bx - ax;
+    const dz = bz - az;
+    const t = THREE.MathUtils.clamp(((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz), 0, 1);
+    best = Math.min(best, Math.hypot(x - ax - t * dx, z - az - t * dz));
+  }
+  return best;
+}
+
+// Ground the camera looks across at some point of the journey: keep it clear of anything tall.
+const VIEW_FRAMES = Array.from({ length: (levels.length - 1) * 4 + 1 }, (_, k) => frameAt(k / 4));
+// `margin` grows the zone by the footprint of the piece being placed.
+function inView(x: number, z: number, margin = 0) {
+  return VIEW_FRAMES.some((f) => {
+    const dx = x - f.pos.x;
+    const dz = z - f.pos.z;
+    const lz = dx * f.out.x + dz * f.out.z;
+    const lx = dx * f.right.x + dz * f.right.z;
+    // from just behind the road to well behind the camera (it sits 11-14 out), and wide enough for its view
+    return lz > -1 - margin && lz < 26 + margin && Math.abs(lx) < 14 + margin;
+  });
+}
+
+// The road: a flat ribbon along the curve with darker kerbs, planks where it bridges the river.
+function Road() {
+  const geometry = useMemo(() => {
+    const N = 900;
+    const pts = road.getSpacedPoints(N);
+    const across = [-2, -1.6, 1.6, 2];
+    const pos: number[] = [];
+    const col: number[] = [];
+    const idx: number[] = [];
+    const dirt = new THREE.Color("#d8b27c");
+    const kerb = new THREE.Color("#a98252");
+    const plank = new THREE.Color("#8b5a2b");
+    const tan = new THREE.Vector3();
+    pts.forEach((p, k) => {
+      road.getTangentAt(k / N, tan).setY(0).normalize();
+      const bridge = distToRiver(p.x, p.z) < 5.5;
+      across.forEach((a, j) => {
+        pos.push(p.x - tan.z * a, 0.04, p.z + tan.x * a);
+        const c = bridge ? plank : j === 0 || j === 3 ? kerb : dirt;
+        col.push(c.r, c.g, c.b);
+      });
+      if (k === 0) return;
+      for (let j = 0; j < 3; j++) {
+        const a = (k - 1) * 4 + j;
+        const b = k * 4 + j;
+        idx.push(a, b, a + 1, a + 1, b, b + 1);
+      }
+    });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+  }, []);
+  return (
+    <mesh geometry={geometry} receiveShadow>
+      <meshStandardMaterial vertexColors roughness={1} side={THREE.DoubleSide} />
+    </mesh>
+  );
+}
+
+export default function Village() {
   const layout = useMemo(() => {
     const r = rng(11);
     const add = (map: Map<string, Item[]>, name: string, item: Item) => map.set(name, [...(map.get(name) ?? []), item]);
+    const pick = <T,>(list: T[]) => list[Math.floor(r() * list.length)];
     const pieces = new Map<string, Item[]>();
-    const stageXs = levels.map((_, i) => i * spacing);
-    const nearStage = (x: number, d: number) => stageXs.some((s) => Math.abs(x - s) < d);
-    const castleX = stageXs[stageXs.length - 1];
 
-    // terrain rows, front (+z) to back
-    for (let row = -1; row <= 8; row++) {
-      const z = ROAD_Z - row * ROW;
+    // the castle stands behind the final stage
+    const last = stageFrames[stageFrames.length - 1];
+    const castle = toWorld(last, 1.5, 0, -16);
+    add(pieces, "building_castle_blue", { p: [castle.x, 0, castle.z], r: last.yaw, s: HEX * 1.3 });
+
+    const box = new THREE.Box3().setFromPoints(road.getPoints(100)).expandByVector(new THREE.Vector3(70, 0, 70));
+    for (let row = 0, z = box.min.z; z < box.max.z; row++, z += ROW) {
       const offset = row % 2 ? TILE_W / 2 : 0;
-      for (let x = X_MIN + offset; x < X_MAX; x += TILE_W) {
-        const tile = row === 0 ? "hex_road_A" : row === 4 ? "hex_water" : "hex_grass";
-        add(pieces, tile, { p: [x, 0, z] });
+      for (let x = box.min.x + offset; x < box.max.x; x += TILE_W) {
+        if (distToRiver(x, z) < 4.4) {
+          add(pieces, "hex_water", { p: [x, 0, z] });
+          continue;
+        }
+        add(pieces, "hex_grass", { p: [x, 0, z] });
 
-        if (row === 1 && !nearStage(x, 8)) {
-          // between stages: a tree or two and some undergrowth
-          add(pieces, TREES[Math.floor(r() * TREES.length)], { p: [x + (r() - 0.5) * 3, 0, z - 1 + r() * 2], r: r() * 6, s: 0.9 + r() * 0.5 });
-          for (let k = 0; k < 3; k++)
-            add(pieces, SMALL[Math.floor(r() * SMALL.length)], { p: [x + (r() - 0.5) * 6, 0, z + (r() - 0.5) * 4], r: r() * 6, s: 2 + r() * 1.5 });
-        } else if (row === 1) {
-          // grass tufts at the edge of each stage
-          add(pieces, SMALL[3 + Math.floor(r() * 2)], { p: [x + (r() - 0.5) * 6, 0, z - 2 - r() * 2], r: r() * 6, s: 2.2 });
-        } else if (row === 2) {
-          // the village street: a building on most tiles, the castle behind the final stage
-          if (Math.abs(x - castleX) < TILE_W / 2) add(pieces, "building_castle_blue", { p: [x, 0, z], s: HEX * 1.2 });
-          else if (r() < 0.8) add(pieces, BUILDINGS[Math.floor(r() * BUILDINGS.length)], { p: [x, 0, z], r: (r() - 0.5) * 0.6 });
-          else add(pieces, TREES[Math.floor(r() * TREES.length)], { p: [x, 0, z], r: r() * 6, s: 1.2 });
-        } else if (row === 3) {
-          for (let k = 0; k < 3; k++)
-            add(pieces, TREES[Math.floor(r() * TREES.length)], { p: [x + (r() - 0.5) * 6, 0, z + (r() - 0.5) * 5], r: r() * 6, s: 1 + r() * 0.6 });
-        } else if (row === 5 || row === 6) {
-          if (r() < 0.7) add(pieces, HILLS[Math.floor(r() * HILLS.length)], { p: [x, 0, z], r: Math.floor(r() * 6) * (Math.PI / 3) });
-        } else if (row >= 7) {
-          add(pieces, MOUNTAINS[Math.floor(r() * MOUNTAINS.length)], { p: [x, 0, z], r: Math.floor(r() * 6) * (Math.PI / 3), s: HEX * (1.1 + r() * 0.6) });
+        const { dist, side } = roadSide(x, z);
+        if (dist < 5 || Math.hypot(x - castle.x, z - castle.z) < 9) continue;
+        const nearStage = stageFrames.some((f) => Math.hypot(x - f.pos.x, z - f.pos.z) < 13);
+        const jitter = (): [number, number, number] => [x + (r() - 0.5) * 5, 0, z + (r() - 0.5) * 4];
+
+        if (inView(x, z) || (nearStage && side < 0)) {
+          // open ground in front of the camera and around the stages: only low plants along the verge,
+          // nothing near the camera itself
+          // (bushes only behind the road; on the camera's side even a bush fills the frame)
+          if (side > 0) {
+            if (dist < 7 && r() < 0.5) add(pieces, pick(GRASS), { p: jitter(), r: r() * 6, s: 1 + r() * 0.5 });
+          } else if (dist < 9 && r() < 0.6) add(pieces, pick(PLANTS), { p: jitter(), r: r() * 6, s: 2 + r() * 1.5 });
+          continue;
+        }
+        if (side > 0) {
+          // the near side of the road, mostly out of shot: light woodland
+          if (r() < 0.5) add(pieces, pick(TREES), { p: jitter(), r: r() * 6, s: 0.9 + r() * 0.5 });
+          continue;
+        }
+        const back = dist;
+        if (back < 14) {
+          // the village street along the far side of the road, facing it
+          if (r() < 0.75) add(pieces, pick(BUILDINGS), { p: [x, 0, z], r: facingRoad(x, z) + (r() - 0.5) * 0.6 });
+          else add(pieces, pick(TREES), { p: [x, 0, z], r: r() * 6, s: 1.2 });
+        } else if (back < 28) {
+          for (let k = 0; k < 3; k++) add(pieces, pick(TREES), { p: jitter(), r: r() * 6, s: 1 + r() * 0.6 });
+        } else if (back < 42) {
+          if (r() < 0.7 && !inView(x, z, 6)) add(pieces, pick(HILLS), { p: [x, 0, z], r: Math.floor(r() * 6) * (Math.PI / 3) });
+        } else if (!inView(x, z, 12)) {
+          add(pieces, pick(MOUNTAINS), { p: [x, 0, z], r: Math.floor(r() * 6) * (Math.PI / 3), s: HEX * (1.1 + r() * 0.6) });
         }
       }
     }
 
-    // stage props
+    // stage props, in each stage's frame
     levels.forEach((lvl, i) => {
-      for (const [name, it] of STAGE_PROPS[lvl.id] ?? []) add(pieces, name, { ...it, p: [it.p[0] + i * spacing, it.p[1], it.p[2]] });
+      const f = stageFrames[i];
+      for (const [name, it] of STAGE_PROPS[lvl.id] ?? []) {
+        const w = toWorld(f, it.p[0], it.p[1], it.p[2]);
+        add(pieces, name, { ...it, p: [w.x, w.y, w.z], r: (it.r ?? 0) + f.yaw });
+      }
     });
 
     const clouds: (Item & { name: string })[] = [];
-    for (let x = -90; x < 90; x += 14 + r() * 10) {
-      clouds.push({ name: r() < 0.5 ? "cloud_big" : "cloud_small", p: [x, 16 + r() * 8, -30 - r() * 30], r: r() * 6, s: HEX * (1 + r()) });
+    for (let x = -90; x < 90; x += 10 + r() * 8) {
+      clouds.push({ name: r() < 0.5 ? "cloud_big" : "cloud_small", p: [x, 16 + r() * 8, -60 + r() * 60], r: r() * 6, s: HEX * (1 + r()) });
     }
-    return { pieces: [...pieces.entries()], clouds };
-  }, [spacing]);
-
-  const mid = (X_MIN + X_MAX) / 2;
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    return { pieces: [...pieces.entries()], clouds, center, size };
+  }, []);
 
   return (
     <group>
@@ -313,17 +411,27 @@ export default function Village({ spacing }: { spacing: number }) {
       <hemisphereLight args={["#d6ecff", "#7da64e", 1.1]} />
 
       {/* ground beyond the tiles, under the fog */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[mid, -0.6, -60]} receiveShadow>
-        <planeGeometry args={[X_MAX - X_MIN + 200, 200]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[layout.center.x, -0.6, layout.center.z]} receiveShadow>
+        <planeGeometry args={[layout.size.x + 200, layout.size.z + 200]} />
         <meshStandardMaterial color="#9cc95a" roughness={1} />
       </mesh>
 
+      <Road />
       {layout.pieces.map(([name, items]) => (
         <Scatter key={name} name={name} items={items} cast={!name.startsWith("hex_")} />
       ))}
       <Clouds items={layout.clouds} />
     </group>
   );
+}
+
+// Yaw that turns a building's front (+z) toward the nearest stretch of road.
+const ROAD_PTS = road.getSpacedPoints(300);
+function facingRoad(x: number, z: number) {
+  const pts = ROAD_PTS;
+  let best = pts[0];
+  for (const p of pts) if ((p.x - x) ** 2 + (p.z - z) ** 2 < (best.x - x) ** 2 + (best.z - z) ** 2) best = p;
+  return Math.atan2(best.x - x, best.z - z);
 }
 
 useGLTF.preload(WORLD);

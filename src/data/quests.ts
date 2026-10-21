@@ -1,5 +1,6 @@
 // Game layer on top of the résumé: the KayKit NPCs on each level, coins to find, and achievements.
-// Positions are relative to each level's stage origin (see SPACING in World.tsx).
+// Positions are stage-local (see path.tsx): +x along the road, +z toward the camera.
+import { apps, levels, profile } from "./resume";
 
 export type NpcClass = "knight" | "barbarian" | "mage" | "rogue" | "rogue_hooded";
 export type NpcClip = "Idle_A" | "Idle_B" | "Interact" | "Use_Item" | "Spawn_Ground" | "Jump_Full_Short" | "Walking_A" | "Running_A";
@@ -160,12 +161,82 @@ export const coins: Record<string, [number, number, number][]> = {
 
 export const coinIds = Object.entries(coins).flatMap(([level, list]) => list.map((_, i) => `${level}-${i}`));
 
-export type Progress = { coins: string[]; met: string[]; visited: number[]; heroesTried: string[]; achievements: string[] };
+// What a visitor can ask an NPC, built from the résumé entry of the NPC's level.
+export type Topic = { key: string; ask: string; reply: string; links?: { label: string; href: string }[] };
+
+export function topicsFor(levelIndex: number): Topic[] {
+  const lvl = levels[levelIndex];
+  if (!lvl) return [];
+  const years = new Date().getFullYear() - profile.careerStart;
+
+  if (lvl.id === "start") {
+    return [
+      {
+        key: "who",
+        ask: "Who is Mockie?",
+        reply: `${profile.name}, "${profile.alias}" to friends: a ${profile.title} from ${profile.location} with ${years}+ years of shipping apps. ${profile.motto}`,
+      },
+      {
+        key: "play",
+        ask: "How do I play?",
+        reply: "Scroll or press Start to walk the road. Each stop is a job: talk to the adventurer there, grab the gold coins, and check the 🏆 quest log for achievements.",
+      },
+      {
+        key: "follow",
+        ask: "Where can I follow him?",
+        reply: "The phones behind me have his Instagram, TikTok and Threads. Code lives on GitHub.",
+        links: [{ label: "GitHub", href: profile.github }],
+      },
+    ];
+  }
+  if (lvl.id === "continue") {
+    return [
+      {
+        key: "hire",
+        ask: "How do I hire him?",
+        reply: `Send a raven, or an email to ${profile.email}. LinkedIn works too.`,
+        links: [
+          { label: "Email", href: `mailto:${profile.email}` },
+          { label: "LinkedIn", href: profile.linkedin },
+        ],
+      },
+      { key: "resume", ask: "Can I see the résumé?", reply: "The whole scroll, signed and sealed.", links: [{ label: "Résumé (PDF)", href: "/resume/resume.pdf" }] },
+      { key: "code", ask: "Where is his code?", reply: "On GitHub, the guild hall of developers.", links: [{ label: "GitHub", href: profile.github }] },
+    ];
+  }
+
+  const out: Topic[] = [];
+  out.push({
+    key: "what",
+    ask: lvl.company ? `What did Mockie do at ${lvl.company}?` : "What happened here?",
+    reply: [lvl.headline, ...lvl.points].join(" "),
+  });
+  if (lvl.period)
+    out.push({
+      key: "when",
+      ask: "When was this?",
+      reply: `${lvl.period}, as ${lvl.role ?? "part of the team"}${lvl.company ? ` at ${lvl.company}` : ""}.`,
+    });
+  if (lvl.stack?.length) out.push({ key: "stack", ask: "Which tools did he use?", reply: `His loadout here: ${lvl.stack.join(", ")}.` });
+  if (lvl.stat) out.push({ key: "stat", ask: "Any big numbers?", reply: `${lvl.stat.value} ${lvl.stat.label}. Not bad for one adventurer.` });
+  const shipped = apps.filter((a) => a.level === lvl.id);
+  if (shipped.length)
+    out.push({
+      key: "apps",
+      ask: "Can I see the app?",
+      reply: shipped.map((a) => `${a.name}: ${a.tagline}.`).join(" ") + " Tap the phones on this stage to flip through screenshots.",
+      links: shipped.filter((a) => a.href).map((a) => ({ label: `${a.name} ↗`, href: a.href! })),
+    });
+  return out;
+}
+
+export type Progress = { coins: string[]; met: string[]; visited: number[]; heroesTried: string[]; achievements: string[]; asked: string[] };
 
 export const achievements: { id: string; icon: string; title: string; body: string; done: (p: Progress, levels: number) => boolean }[] = [
   { id: "first-steps", icon: "🥾", title: "First Steps", body: "Leave the village for LV.1.", done: (p) => p.visited.includes(1) },
   { id: "first-coin", icon: "🪙", title: "Shiny!", body: "Pick up your first coin.", done: (p) => p.coins.length > 0 },
-  { id: "chatty", icon: "💬", title: "Small Talk", body: "Talk to an adventurer.", done: (p) => p.met.length > 0 },
+  { id: "chatty", icon: "💬", title: "Small Talk", body: "Ask an adventurer a question.", done: (p) => p.met.length > 0 },
+  { id: "curious", icon: "❓", title: "Curious Mind", body: "Ask the adventurers 5 questions.", done: (p) => p.asked.length >= 5 },
   { id: "explorer", icon: "🗺️", title: "Explorer", body: "Visit every level.", done: (p, levels) => p.visited.length >= levels },
   { id: "treasure", icon: "💰", title: "Treasure Hunter", body: `Collect all ${coinIds.length} coins.`, done: (p) => coinIds.every((c) => p.coins.includes(c)) },
   { id: "social", icon: "🤝", title: "Party Animal", body: `Talk to all ${npcCount} adventurers.`, done: (p) => p.met.length >= npcCount },

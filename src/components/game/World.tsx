@@ -14,47 +14,51 @@ import { stages } from "./Stages";
 import Village from "./Village";
 import Adventurers from "./Adventurers";
 import Coins from "./Coins";
+import { AtStage, frameAt, makeFrame, toWorld } from "./path";
 
-export const SPACING = 24;
-// Desktop: shift the camera focus left so each stage sits on the right, clear of the text panel.
+// Desktop: shift the camera focus back along the road so each stage sits on the right, clear of the text panel.
 const FOCUS_OFFSET = 1.5;
-// Where Mock floats relative to the stage origin.
+// Where the hero stands relative to the stage origin (stage-local x, along the road).
 const GHOST_OFFSET = -2;
+const HERO_Z = 2.5;
 
 const tmpColor = new THREE.Color();
+const tmp = { frame: makeFrame(), focus: new THREE.Vector3(), cam: new THREE.Vector3(), hero: new THREE.Vector3() };
 
 function Rig() {
   const ghost = useRef<THREE.Group>(null);
   const light = useRef<THREE.PointLight>(null);
-  const focus = useRef(new THREE.Vector3());
+  const u = useRef(0); // smoothed position along the road, in levels
 
   useFrame(({ camera, pointer, size }, dt) => {
     const { progress, level } = useGame.getState();
-    // Phones: panels sit at the bottom, so centre on Mock and look lower to lift the scene up.
+    // Phones: panels sit at the bottom, so centre on the hero and look lower to lift the scene up.
     const narrow = size.width < 640;
-    const stageX = progress * (levels.length - 1) * SPACING;
-    const targetX = narrow ? stageX + GHOST_OFFSET + 1 : stageX - FOCUS_OFFSET;
+    const target = progress * (levels.length - 1);
     const k = 1 - Math.exp(-dt * 4);
+    u.current = THREE.MathUtils.lerp(u.current, target, k);
 
-    focus.current.x = THREE.MathUtils.lerp(focus.current.x, targetX, k);
-    focus.current.y = narrow ? 0.2 : 2;
-
-    // slight parallax from the pointer
-    camera.position.x = THREE.MathUtils.lerp(camera.position.x, focus.current.x + pointer.x * 0.8, k);
-    camera.position.y = THREE.MathUtils.lerp(camera.position.y, 3.2 + pointer.y * 0.4, k);
-    camera.position.z = narrow ? 14 : 11;
-    camera.lookAt(focus.current);
+    const f = frameAt(u.current, tmp.frame);
+    const focusX = narrow ? GHOST_OFFSET + 1 : -FOCUS_OFFSET;
+    toWorld(f, focusX, narrow ? 0.2 : 2, 0, tmp.focus);
+    // behind the road on the camera side, with a slight parallax from the pointer
+    toWorld(f, focusX + pointer.x * 0.8, 3.2 + pointer.y * 0.4, narrow ? 14 : 11, tmp.cam);
+    camera.position.lerp(tmp.cam, 1 - Math.exp(-dt * 10));
+    camera.lookAt(tmp.focus);
 
     if (ghost.current) {
-      ghost.current.position.x = focus.current.x - targetX + stageX + GHOST_OFFSET;
+      ghost.current.position.copy(toWorld(f, GHOST_OFFSET, 0, HERO_Z, tmp.hero));
       // face the direction of travel while moving, the camera when settled
-      const moving = Math.abs(targetX - focus.current.x) > 0.3;
+      const delta = target - u.current;
+      const moving = Math.abs(delta) > 0.012;
       if (moving !== useGame.getState().moving) useGame.setState({ moving });
-      const face = moving ? Math.sign(targetX - focus.current.x) * 0.9 : 0.25;
-      ghost.current.rotation.y = THREE.MathUtils.lerp(ghost.current.rotation.y, face, k);
+      const face = f.yaw + (moving ? Math.sign(delta) * 0.9 : 0.25);
+      // turn the short way round
+      const r = ghost.current.rotation;
+      r.y += Math.atan2(Math.sin(face - r.y), Math.cos(face - r.y)) * k;
     }
     if (light.current) {
-      light.current.position.x = focus.current.x - targetX + stageX;
+      light.current.position.copy(toWorld(f, 0, 4, 3, tmp.hero));
       light.current.color.lerp(tmpColor.set(levels[level].color), k);
     }
   });
@@ -66,7 +70,7 @@ function Rig() {
   return (
     <>
       <pointLight ref={light} position={[0, 4, 3]} intensity={40} distance={18} />
-      <group ref={ghost} position={[0, 0, 2.5]}>
+      <group ref={ghost}>
         {/* the procedural ghost stands in while the hero's model loads */}
         <Suspense
           fallback={
@@ -98,13 +102,13 @@ export default function World() {
       {/* light haze that matches the daytime horizon */}
       <fog attach="fog" args={["#d9ecf3", 30, 95]} />
       <Suspense fallback={null}>
-        <Village spacing={SPACING} />
+        <Village />
       </Suspense>
 
       {levels.map((lvl, i) => {
         const Stage = stages[lvl.id];
         return (
-          <group key={lvl.id} position={[i * SPACING, 0, 0]}>
+          <AtStage key={lvl.id} index={i}>
             <Stage color={lvl.color} />
             <Suspense fallback={null}>
               {apps
@@ -113,12 +117,12 @@ export default function World() {
                   <PhoneFan key={a.id} app={a} />
                 ))}
             </Suspense>
-          </group>
+          </AtStage>
         );
       })}
 
-      <Adventurers spacing={SPACING} />
-      <Coins spacing={SPACING} />
+      <Adventurers />
+      <Coins />
 
       <Rig />
 

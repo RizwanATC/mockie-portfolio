@@ -8,6 +8,7 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import { levels } from "@/data/resume";
 import { party, type Npc, type NpcClip } from "@/data/quests";
 import { useGame } from "@/lib/store";
+import { AtStage } from "./path";
 
 // KayKit Adventurers (CC0, Kay Lousberg, www.kaylousberg.com): the NPCs from `party` in src/data/quests.ts.
 // They greet the hero on arrival and talk when clicked. Built by scripts/import-kaykit.mjs into /models/kaykit/.
@@ -27,7 +28,7 @@ function Adventurer({ npc, level, speaks }: { npc: Npc; level: number; speaks: b
   const mixer = useRef<THREE.AnimationMixer>(null);
   const current = useRef<THREE.AnimationAction | null>(null);
   const group = useRef<THREE.Group>(null);
-  const talk = () => useGame.getState().say({ name: npc.name, line: npc.line, who: npc.who });
+  const talk = () => useGame.getState().say({ npc: npc.id, name: npc.name, line: npc.line, who: npc.who, level });
 
   // Skinned meshes need SkeletonUtils to clone, so the same character can appear twice.
   const model = useMemo(() => {
@@ -125,18 +126,18 @@ function Adventurer({ npc, level, speaks }: { npc: Npc; level: number; speaks: b
   );
 }
 
-export default function Adventurers({ spacing }: { spacing: number }) {
+export default function Adventurers() {
   return (
     <>
       {levels.map((lvl, i) => (
-        <group key={lvl.id} position={[i * spacing, 0, 0]}>
+        <AtStage key={lvl.id} index={i}>
           {(party[lvl.id] ?? []).map((npc, j) => (
             <Suspense key={npc.id} fallback={null}>
               {/* only the first NPC of a level speaks up on arrival, so a group doesn't talk over itself */}
               <Adventurer npc={npc} level={i} speaks={j === 0} />
             </Suspense>
           ))}
-        </group>
+        </AtStage>
       ))}
     </>
   );

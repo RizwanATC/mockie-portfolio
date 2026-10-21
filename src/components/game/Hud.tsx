@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { heroes, levels, profile } from "@/data/resume";
-import { achievements, coinIds } from "@/data/quests";
+import { achievements, coinIds, topicsFor } from "@/data/quests";
 import { useGame } from "@/lib/store";
 import HeroPicker from "./HeroPicker";
 
@@ -45,37 +45,90 @@ const NPC_PORTRAIT: Record<string, string> = {
 function Dialogue() {
   const dialogue = useGame((s) => s.dialogue);
   const say = useGame((s) => s.say);
-  const [chars, setChars] = useState({ id: 0, n: 0 });
+  const [topic, setTopic] = useState<{ id: number; key: string | null }>({ id: 0, key: null });
+  const [chars, setChars] = useState({ text: "", n: 0 });
+  const topics = dialogue ? topicsFor(dialogue.level) : [];
+  const picked = topic.id === dialogue?.id ? topics.find((t) => t.key === topic.key) : undefined;
+  const text = picked?.reply ?? dialogue?.line ?? "";
+  const engaged = !!picked;
+
   useEffect(() => {
-    if (!dialogue) return;
-    // typewriter, then close a few seconds after the line is complete
-    const tick = setInterval(() => setChars((c) => (c.id === dialogue.id ? { id: c.id, n: c.n + 1 } : { id: dialogue.id, n: 1 })), 22);
-    const close = setTimeout(() => say(null), dialogue.line.length * 22 + 4000);
-    return () => {
-      clearInterval(tick);
-      clearTimeout(close);
-    };
-  }, [dialogue, say]);
+    if (!text) return;
+    // typewriter for each new line
+    const tick = setInterval(() => setChars((c) => (c.text === text ? { text, n: c.n + 2 } : { text, n: 2 })), 24);
+    return () => clearInterval(tick);
+  }, [text]);
+
+  useEffect(() => {
+    // a greeting nobody answers closes itself; a conversation stays open until closed
+    if (!dialogue || engaged) return;
+    const close = setTimeout(() => say(null), 9000);
+    return () => clearTimeout(close);
+  }, [dialogue, engaged, say]);
+
   if (!dialogue) return null;
-  const shown = chars.id === dialogue.id ? dialogue.line.slice(0, chars.n) : "";
+  const shown = chars.text === text ? text.slice(0, chars.n) : "";
+  const choose = (key: string) => {
+    setTopic({ id: dialogue.id, key });
+    const s = useGame.getState();
+    s.meet(dialogue.npc);
+    s.ask(`${dialogue.level}-${key}`);
+  };
+
   return (
-    <button
-      onClick={() => say(null)}
-      aria-live="polite"
-      className="pointer-events-auto absolute left-1/2 top-16 flex w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 items-start gap-3 rounded-lg border-2 border-amber-900/80 bg-amber-50/95 p-3 text-left shadow-xl"
+    <div
+      role="dialog"
+      aria-label={`${dialogue.name} says`}
+      className="pointer-events-auto absolute left-1/2 top-16 w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border-2 border-amber-900/80 bg-amber-50/95 p-3 text-left shadow-xl"
     >
-      <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border-2 border-amber-900/60 bg-slate-800">
-        <Image src={NPC_PORTRAIT[dialogue.who] ?? NPC_PORTRAIT.knight} alt="" fill sizes="48px" className="object-cover" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[10px] text-amber-700">{dialogue.name.toUpperCase()}</span>
-        <span className="mt-0.5 block font-sans text-sm font-normal normal-case leading-snug tracking-normal text-amber-950">
-          <span aria-hidden>{shown}</span>
-          <span className="sr-only">{dialogue.line}</span>
+      <div className="flex items-start gap-3">
+        <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border-2 border-amber-900/60 bg-slate-800">
+          <Image src={NPC_PORTRAIT[dialogue.who] ?? NPC_PORTRAIT.knight} alt="" fill sizes="48px" className="object-cover" />
         </span>
-      </span>
-      <span className="self-end text-[10px] text-amber-700/70">▼</span>
-    </button>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] text-amber-700">{dialogue.name.toUpperCase()}</p>
+          <p aria-live="polite" className="mt-0.5 max-h-40 overflow-y-auto font-sans text-sm font-normal normal-case leading-snug tracking-normal text-amber-950">
+            <span aria-hidden>{shown}</span>
+            <span className="sr-only">{text}</span>
+          </p>
+          {picked?.links && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {picked.links.map((l) => (
+                <a
+                  key={l.href}
+                  href={l.href}
+                  target={l.href.startsWith("http") ? "_blank" : undefined}
+                  rel="noreferrer"
+                  className="rounded border border-amber-900/50 bg-amber-200 px-2 py-1 text-[11px] text-amber-950 hover:bg-amber-300"
+                >
+                  {l.label}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+        <button onClick={() => say(null)} aria-label="Close" className="text-amber-800/70 hover:text-amber-950">
+          ✕
+        </button>
+      </div>
+      {topics.length > 0 && (
+        <ul className="mt-3 grid gap-1 border-t border-amber-900/20 pt-2">
+          {topics.map((t) => (
+            <li key={t.key}>
+              <button
+                onClick={() => choose(t.key)}
+                className={`w-full rounded px-2 py-1 text-left font-sans text-[13px] font-medium normal-case tracking-normal hover:bg-amber-200 ${
+                  picked?.key === t.key ? "bg-amber-200 text-amber-950" : "text-amber-900"
+                }`}
+              >
+                <span className="mr-1.5 text-amber-600">{picked?.key === t.key ? "▶" : "›"}</span>
+                {t.ask}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

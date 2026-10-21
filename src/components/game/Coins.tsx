@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { levels } from "@/data/resume";
 import { coinIds, coins } from "@/data/quests";
 import { useGame } from "@/lib/store";
+import { AtStage } from "./path";
 
 // Spinning gold coins hidden around each stage (positions in src/data/quests.ts). Click to collect.
 
@@ -74,15 +75,15 @@ function Coin({ id, position, level }: { id: string; position: [number, number, 
   );
 }
 
-export default function Coins({ spacing }: { spacing: number }) {
+export default function Coins() {
   return (
     <>
       {levels.map((lvl, i) => (
-        <group key={lvl.id} position={[i * spacing, 0, 0]}>
+        <AtStage key={lvl.id} index={i}>
           {(coins[lvl.id] ?? []).map((p, j) => (
             <Coin key={j} id={`${lvl.id}-${j}`} position={p} level={i} />
           ))}
-        </group>
+        </AtStage>
       ))}
     </>
   );
