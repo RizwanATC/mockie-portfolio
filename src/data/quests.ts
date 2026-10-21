@@ -184,7 +184,7 @@ export function topicsFor(levelIndex: number): Topic[] {
       {
         key: "follow",
         ask: "Where can I follow him?",
-        reply: "The phones behind me have his Instagram, TikTok and Threads. Code lives on GitHub.",
+        reply: "The notice boards behind me have his Instagram, TikTok and Threads. Code lives on GitHub.",
         links: [{ label: "GitHub", href: profile.github }],
       },
     ];

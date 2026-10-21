@@ -4,7 +4,7 @@ import { Suspense, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Float, RoundedBox, Sparkles } from "@react-three/drei";
 import * as THREE from "three";
-import SocialPhone from "./SocialPhone";
+import SocialBoard from "./SocialBoard";
 
 // Primitive placeholders for each level. Phase 3 replaces these with Meshy props
 // loaded per level; keep each stage self-contained around its own origin.
@@ -45,15 +45,13 @@ function Car({ color }: { color: string }) {
 function StartStage({ color }: { color: string }) {
   return (
     <group>
-      {/* social phones: Instagram, TikTok, Threads, fanned toward the camera */}
+      {/* notice boards for Instagram, TikTok and Threads, turned toward the camera */}
       {(["instagram", "tiktok", "threads"] as const).map((network, i) => (
-        <Float key={network} speed={1.4} rotationIntensity={0.08} floatIntensity={0.35}>
-          <group position={[0.4 + i * 2.3, 2.75, -1.6 - Math.abs(i - 1) * 0.5]} rotation={[0, (1 - i) * 0.18, 0]} scale={1.55}>
-            <Suspense fallback={null}>
-              <SocialPhone network={network} />
-            </Suspense>
-          </group>
-        </Float>
+        <group key={network} position={[i * 2.9, 0, -2 - Math.abs(i - 1) * 0.5]} rotation={[0, (1 - i) * 0.18, 0]} scale={1.25}>
+          <Suspense fallback={null}>
+            <SocialBoard network={network} />
+          </Suspense>
+        </group>
       ))}
       <Sparkles count={60} scale={[10, 6, 6]} position={[0, 3, -2]} size={3} color={color} />
     </group>
