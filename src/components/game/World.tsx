@@ -12,6 +12,7 @@ import Character from "./Character";
 import PhoneFan from "./Phone";
 import { stages } from "./Stages";
 import Village from "./Village";
+import Adventurers from "./Adventurers";
 
 export const SPACING = 24;
 // Desktop: shift the camera focus left so each stage sits on the right, clear of the text panel.
@@ -109,6 +110,8 @@ export default function World() {
           </group>
         );
       })}
+
+      <Adventurers spacing={SPACING} />
 
       <Rig />
 
