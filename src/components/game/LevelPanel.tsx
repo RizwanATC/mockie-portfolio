@@ -5,6 +5,7 @@ import Image from "next/image";
 import { apps, profile, type App, type Level } from "@/data/resume";
 import { useGame } from "@/lib/store";
 import { phoneFrame } from "@/data/phoneFrame";
+import HeroPicker from "./HeroPicker";
 
 const THUMB_W = 38;
 const THUMB_H = THUMB_W / phoneFrame.aspect;
@@ -87,9 +88,12 @@ function ScreenStrip({ app }: { app: App }) {
   );
 }
 
+// Title and Continue sit on a dark glass card so they read against the bright daytime world.
+const SCREEN_CARD = "max-w-xl rounded-xl border border-white/10 bg-black/45 p-6 backdrop-blur-sm sm:p-8";
+
 function TitleScreen({ onStart }: { onStart: () => void }) {
   return (
-    <div className="max-w-xl">
+    <div className={SCREEN_CARD}>
       <p className="font-display text-sm font-semibold tracking-[0.3em] text-purple-300">{profile.name.toUpperCase()}</p>
       <h1 className="mt-3 font-display text-6xl font-bold leading-none tracking-tight text-white drop-shadow-[0_0_24px_rgba(168,85,247,0.6)] sm:text-8xl">
         {profile.alias.toUpperCase()}
@@ -98,7 +102,10 @@ function TitleScreen({ onStart }: { onStart: () => void }) {
         {profile.title} · {profile.location}
       </p>
       <p className="mt-2 text-white/50">{profile.motto}</p>
-      <button onClick={onStart} className="mt-10 animate-pulse font-display text-base font-semibold tracking-[0.25em] text-yellow-300 hover:text-yellow-200">
+      <div className="mt-8">
+        <HeroPicker />
+      </div>
+      <button onClick={onStart} className="mt-8 animate-pulse font-display text-base font-semibold tracking-[0.25em] text-yellow-300 hover:text-yellow-200">
         ▶ PRESS START
       </button>
       <p className="mt-3 text-xs text-white/30">or scroll</p>
@@ -139,7 +146,7 @@ function ContinueScreen() {
   ];
 
   return (
-    <div ref={ref} className="max-w-xl">
+    <div ref={ref} className={SCREEN_CARD}>
       <h2 className="font-display text-5xl font-bold tracking-tight text-white sm:text-6xl">CONTINUE?</h2>
       <p className="mt-4 font-display text-8xl font-bold text-yellow-300 tabular-nums" aria-live="polite">
         {count}

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Lenis from "lenis";
 import "lenis/dist/lenis.css";
 import { levels } from "@/data/resume";
+import { achievements } from "@/data/quests";
 import { useGame, type ViewMode } from "@/lib/store";
 import Hud from "./Hud";
 import LevelPanel from "./LevelPanel";
@@ -41,6 +42,32 @@ export default function GameShell({ plain }: { plain: React.ReactNode }) {
   useEffect(() => {
     setMode(initialMode());
   }, [setMode]);
+
+  // Load the saved game, then track visited levels and unlock achievements as the state changes.
+  useEffect(() => {
+    let unsub = () => {};
+    let cancelled = false;
+    const check = () => {
+      const s = useGame.getState();
+      if (s.mode === "3d" && !s.visited.includes(s.level)) s.visit(s.level);
+      for (const a of achievements) {
+        // read fresh state each time: unlocking re-enters check() through the subscription
+        const now = useGame.getState();
+        if (now.achievements.includes(a.id) || !a.done(now, levels.length)) continue;
+        s.unlock(a.id);
+        s.notify({ icon: a.icon, title: `Achievement: ${a.title}`, body: a.body });
+      }
+    };
+    Promise.resolve(useGame.persist.rehydrate()).then(() => {
+      if (cancelled) return;
+      unsub = useGame.subscribe(check);
+      check();
+    });
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, []);
 
   const changeMode = (m: ViewMode) => {
     try {

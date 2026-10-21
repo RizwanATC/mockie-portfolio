@@ -5,7 +5,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { AdaptiveDpr } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
-import { apps, character, levels } from "@/data/resume";
+import { apps, heroes, levels } from "@/data/resume";
 import { useGame } from "@/lib/store";
 import Mock from "./Mock";
 import Character from "./Character";
@@ -13,6 +13,7 @@ import PhoneFan from "./Phone";
 import { stages } from "./Stages";
 import Village from "./Village";
 import Adventurers from "./Adventurers";
+import Coins from "./Coins";
 
 export const SPACING = 24;
 // Desktop: shift the camera focus left so each stage sits on the right, clear of the text panel.
@@ -59,22 +60,25 @@ function Rig() {
   });
 
   const action = useGame((s) => levels[s.level].action);
+  const heroId = useGame((s) => s.hero);
+  const hero = heroes.find((h) => h.id === heroId) ?? heroes[0];
 
   return (
     <>
       <pointLight ref={light} position={[0, 4, 3]} intensity={40} distance={18} />
       <group ref={ghost} position={[0, 0, 2.5]}>
-        {character === "model" ? (
-          <Suspense fallback={null}>
-            <group scale={1.3}>
-              <Character action={action} />
+        {/* the procedural ghost stands in while the hero's model loads */}
+        <Suspense
+          fallback={
+            <group position={[0, 1.5, 0]} scale={0.8}>
+              <Mock action={action} />
             </group>
-          </Suspense>
-        ) : (
-          <group position={[0, 1.5, 0]} scale={0.8}>
-            <Mock action={action} />
+          }
+        >
+          <group scale={hero.scale}>
+            <Character key={hero.id} action={action} url={hero.url} />
           </group>
-        )}
+        </Suspense>
       </group>
     </>
   );
@@ -90,10 +94,12 @@ export default function World() {
       className="!fixed inset-0"
       aria-hidden
     >
-      <color attach="background" args={["#ffb070"]} />
-      {/* warm haze that matches the sunset horizon */}
-      <fog attach="fog" args={["#e9a07a", 22, 75]} />
-      <Village />
+      <color attach="background" args={["#cfe6f2"]} />
+      {/* light haze that matches the daytime horizon */}
+      <fog attach="fog" args={["#d9ecf3", 30, 95]} />
+      <Suspense fallback={null}>
+        <Village spacing={SPACING} />
+      </Suspense>
 
       {levels.map((lvl, i) => {
         const Stage = stages[lvl.id];
@@ -112,6 +118,7 @@ export default function World() {
       })}
 
       <Adventurers spacing={SPACING} />
+      <Coins spacing={SPACING} />
 
       <Rig />
 

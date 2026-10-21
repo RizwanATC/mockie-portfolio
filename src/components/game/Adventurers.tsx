@@ -6,56 +6,28 @@ import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { levels } from "@/data/resume";
+import { party, type Npc, type NpcClip } from "@/data/quests";
 import { useGame } from "@/lib/store";
 
-// KayKit Adventurers (CC0, Kay Lousberg, www.kaylousberg.com): one NPC per level who greets Mock on arrival,
-// plus the whole party at the Continue screen. Built by scripts/import-kaykit.mjs into /models/kaykit/.
+// KayKit Adventurers (CC0, Kay Lousberg, www.kaylousberg.com): the NPCs from `party` in src/data/quests.ts.
+// They greet the hero on arrival and talk when clicked. Built by scripts/import-kaykit.mjs into /models/kaykit/.
 // Every character shares the Rig_Medium skeleton, so one animation file drives them all.
 
 const DIR = "/models/kaykit";
 const ANIMS = `${DIR}/anims.glb`;
 const PROPS = `${DIR}/props.glb`;
 const FADE = 0.3;
-// KayKit's Rig_Medium stands about twice Mock's height
+// KayKit's Rig_Medium stands about twice the Meshy hero's height
 const SCALE = 0.75;
 
-type Who = "knight" | "barbarian" | "mage" | "ranger" | "rogue" | "rogue_hooded";
-type Clip = "Idle_A" | "Idle_B" | "Interact" | "Use_Item" | "Spawn_Ground" | "Jump_Full_Short" | "Walking_A" | "Running_A";
-
-type Npc = {
-  who: Who;
-  right?: string; // prop in the right hand (a root node name in props.glb)
-  left?: string;
-  position: [number, number, number]; // relative to the stage origin
-  rotationY?: number;
-  idle: Clip;
-  greet: Clip; // once, when Mock arrives at this level
-};
-
-export const party: Record<string, Npc[]> = {
-  start: [{ who: "knight", right: "sword_1handed", left: "shield_badge_color", position: [1.4, 0, 1.6], rotationY: -0.5, idle: "Idle_A", greet: "Spawn_Ground" }],
-  atx: [{ who: "ranger", left: "bow_withString", position: [1, 0, 0.6], rotationY: -0.5, idle: "Idle_B", greet: "Interact" }],
-  stream: [{ who: "barbarian", right: "mug_full", position: [1.2, 0, 1], rotationY: -0.5, idle: "Idle_B", greet: "Use_Item" }],
-  duogo: [{ who: "mage", left: "spellbook_open", position: [1.6, 0, 0.6], rotationY: -0.5, idle: "Idle_A", greet: "Interact" }],
-  noor: [{ who: "rogue_hooded", right: "dagger", position: [0, 0, 0.6], rotationY: -0.4, idle: "Idle_B", greet: "Jump_Full_Short" }],
-  riverlens: [{ who: "rogue", right: "crossbow_1handed", position: [-0.2, 0, 0.4], rotationY: -0.4, idle: "Idle_A", greet: "Use_Item" }],
-  bonus: [{ who: "mage", right: "staff", position: [0.3, 0, 2.4], rotationY: -0.5, idle: "Idle_B", greet: "Use_Item" }],
-  continue: [
-    { who: "knight", right: "sword_1handed", left: "shield_badge_color", position: [-1.8, 0, -0.6], rotationY: 0.2, idle: "Idle_A", greet: "Jump_Full_Short" },
-    { who: "barbarian", right: "axe_2handed", position: [1.1, 0, -1.2], rotationY: 0, idle: "Idle_B", greet: "Use_Item" },
-    { who: "mage", right: "staff", position: [2.4, 0, -1.4], rotationY: -0.1, idle: "Idle_A", greet: "Jump_Full_Short" },
-    { who: "ranger", left: "bow_withString", position: [3.7, 0, -1.2], rotationY: -0.2, idle: "Idle_B", greet: "Interact" },
-    { who: "rogue_hooded", right: "dagger", position: [5, 0, -0.6], rotationY: -0.4, idle: "Idle_A", greet: "Jump_Full_Short" },
-  ],
-};
-
-function Adventurer({ npc, level }: { npc: Npc; level: number }) {
+function Adventurer({ npc, level, speaks }: { npc: Npc; level: number; speaks: boolean }) {
   const { scene } = useGLTF(`${DIR}/${npc.who}.glb`);
   const { animations } = useGLTF(ANIMS);
   const props = useGLTF(PROPS);
   const mixer = useRef<THREE.AnimationMixer>(null);
   const current = useRef<THREE.AnimationAction | null>(null);
   const group = useRef<THREE.Group>(null);
+  const talk = () => useGame.getState().say({ name: npc.name, line: npc.line, who: npc.who });
 
   // Skinned meshes need SkeletonUtils to clone, so the same character can appear twice.
   const model = useMemo(() => {
@@ -80,7 +52,7 @@ function Adventurer({ npc, level }: { npc: Npc; level: number }) {
     return m;
   }, [scene, props.scene, npc.right, npc.left]);
 
-  const play = (name: Clip, once = false) => {
+  const play = (name: NpcClip, once = false) => {
     const m = mixer.current;
     const clip = animations.find((c) => c.name === name);
     if (!m || !clip) return;
@@ -111,11 +83,22 @@ function Adventurer({ npc, level }: { npc: Npc; level: number }) {
     };
   }, [model, animations]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Greet when the camera settles on this level.
-  const here = useGame((s) => s.level === level && !s.moving);
+  // Greet when the camera settles on this level (including on load, for the first level).
   useEffect(() => {
-    if (here) play(npc.greet, true);
-  }, [here]); // eslint-disable-line react-hooks/exhaustive-deps
+    const isHere = (s: { level: number; moving: boolean }) => s.level === level && !s.moving;
+    const greet = () => {
+      play(npc.greet, true);
+      if (speaks) talk();
+    };
+    const first = isHere(useGame.getState()) ? setTimeout(greet, 0) : undefined;
+    const unsub = useGame.subscribe((s, prev) => {
+      if (isHere(s) && !isHere(prev)) greet();
+    });
+    return () => {
+      clearTimeout(first);
+      unsub();
+    };
+  }, [model, animations]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useFrame((_, dt) => {
     const { level: current } = useGame.getState();
@@ -132,6 +115,8 @@ function Adventurer({ npc, level }: { npc: Npc; level: number }) {
         onClick={(e: ThreeEvent<MouseEvent>) => {
           e.stopPropagation();
           play("Jump_Full_Short", true);
+          talk();
+          useGame.getState().meet(npc.id);
         }}
         onPointerOver={() => (document.body.style.cursor = "pointer")}
         onPointerOut={() => (document.body.style.cursor = "")}
@@ -146,8 +131,9 @@ export default function Adventurers({ spacing }: { spacing: number }) {
       {levels.map((lvl, i) => (
         <group key={lvl.id} position={[i * spacing, 0, 0]}>
           {(party[lvl.id] ?? []).map((npc, j) => (
-            <Suspense key={j} fallback={null}>
-              <Adventurer npc={npc} level={i} />
+            <Suspense key={npc.id} fallback={null}>
+              {/* only the first NPC of a level speaks up on arrival, so a group doesn't talk over itself */}
+              <Adventurer npc={npc} level={i} speaks={j === 0} />
             </Suspense>
           ))}
         </group>
