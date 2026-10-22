@@ -7,14 +7,14 @@ import * as THREE from "three";
 import type { GhostAction } from "@/data/resume";
 import { useGame } from "@/lib/store";
 
-// Rigged character at /models/mock.glb, built by scripts/import-character.mjs from a Meshy or Mixamo export.
+// The rigged hero the visitor picked (see `heroes` in src/data/resume.ts): a KayKit hero from
+// scripts/import-kaykit.mjs, or /models/mock.glb built by scripts/import-character.mjs from a Meshy or Mixamo export.
 // Clips are matched by name, so Meshy's "Walking"/"Idle" and Mixamo file names both work:
 // - walk:  plays while the camera travels between levels (and on the "walk" level)
 // - intro: plays once on load and when the character is clicked
 // - other GhostActions ("wave", "dance", ...) play on their level when a matching clip exists
 // Anything without a clip falls back to idle plus a light procedural motion.
 
-const URL = "/models/mock.glb";
 const FADE = 0.35;
 
 const aliases: Record<GhostAction | "intro", RegExp> = {
@@ -30,10 +30,10 @@ const aliases: Record<GhostAction | "intro", RegExp> = {
   bow: /bow/i,
 };
 
-export default function Character({ action }: { action: GhostAction }) {
+export default function Character({ action, url }: { action: GhostAction; url: string }) {
   const root = useRef<THREE.Group>(null);
   const motion = useRef<THREE.Group>(null);
-  const { scene, animations } = useGLTF(URL);
+  const { scene, animations } = useGLTF(url);
   const moving = useGame((s) => s.moving);
 
   const mixer = useRef<THREE.AnimationMixer>(null);
@@ -146,4 +146,3 @@ export default function Character({ action }: { action: GhostAction }) {
   );
 }
 
-useGLTF.preload(URL);
