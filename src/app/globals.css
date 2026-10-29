@@ -45,6 +45,10 @@ html.lenis {
   scroll-behavior: auto;
 }
 
+@utility font-medieval {
+  font-family: var(--font-medieval), Georgia, serif;
+}
+
 @utility font-display {
   font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
 }
