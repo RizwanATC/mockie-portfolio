@@ -4,7 +4,8 @@ import { Suspense, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Float, RoundedBox, Sparkles } from "@react-three/drei";
 import * as THREE from "three";
-import SocialPhone from "./SocialPhone";
+import SocialBoard from "./SocialBoard";
+import CarriageYard from "./CarriageYard";
 
 // Primitive placeholders for each level. Phase 3 replaces these with Meshy props
 // loaded per level; keep each stage self-contained around its own origin.
@@ -45,47 +46,19 @@ function Car({ color }: { color: string }) {
 function StartStage({ color }: { color: string }) {
   return (
     <group>
-      {/* social phones: Instagram, TikTok, Threads, fanned toward the camera */}
+      {/* notice boards for Instagram, TikTok and Threads, turned toward the camera */}
       {(["instagram", "tiktok", "threads"] as const).map((network, i) => (
-        <Float key={network} speed={1.4} rotationIntensity={0.08} floatIntensity={0.35}>
-          <group position={[0.4 + i * 2.3, 2.75, -1.6 - Math.abs(i - 1) * 0.5]} rotation={[0, (1 - i) * 0.18, 0]} scale={1.55}>
-            <Suspense fallback={null}>
-              <SocialPhone network={network} />
-            </Suspense>
-          </group>
-        </Float>
+        <group key={network} position={[i * 2.9, 0, -2 - Math.abs(i - 1) * 0.5]} rotation={[0, (1 - i) * 0.18, 0]} scale={1.25}>
+          <Suspense fallback={null}>
+            <SocialBoard network={network} />
+          </Suspense>
+        </group>
       ))}
       <Sparkles count={60} scale={[10, 6, 6]} position={[0, 3, -2]} size={3} color={color} />
     </group>
   );
 }
 
-function AtxStage({ color }: { color: string }) {
-  return (
-    <group>
-      {/* parking bay lines */}
-      {[-3, -1, 1, 3].map((x) => (
-        <mesh key={x} position={[x, 0.01, -1]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[0.1, 4]} />
-          <meshBasicMaterial color="#e2e8f0" />
-        </mesh>
-      ))}
-      <group position={[-2, 0, -1.2]} rotation={[0, Math.PI / 2, 0]}>
-        <Car color="#334155" />
-      </group>
-      {/* pay terminal */}
-      <group position={[3, 0, -1.5]}>
-        <RoundedBox args={[0.9, 2.2, 0.6]} radius={0.1} position={[0, 1.1, 0]} castShadow>
-          <meshStandardMaterial color="#1e293b" />
-        </RoundedBox>
-        <mesh position={[0, 1.6, 0.31]}>
-          <planeGeometry args={[0.6, 0.5]} />
-          <Glow color={color} />
-        </mesh>
-      </group>
-    </group>
-  );
-}
 
 function StreamStage({ color }: { color: string }) {
   const bubbles = useRef<THREE.Group>(null);
@@ -278,7 +251,7 @@ function ContinueStage({ color }: { color: string }) {
 
 export const stages: Record<string, (p: { color: string }) => React.JSX.Element> = {
   start: StartStage,
-  atx: AtxStage,
+  atx: CarriageYard,
   stream: StreamStage,
   duogo: DuogoStage,
   noor: NoorStage,
