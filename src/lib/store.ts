@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { DEFAULT_HERO } from "@/data/resume";
+import type { QuestIcon } from "@/data/quests";
 
 export type ViewMode = "3d" | "plain";
 
@@ -35,8 +36,12 @@ type GameState = {
   say: (d: { npc: string; name: string; line: string; who: string; level: number } | null) => void;
 
   // Transient: the latest toast ("+1 coin", "Achievement unlocked") for the HUD.
-  toast: { id: number; title: string; body?: string; icon: string } | null;
-  notify: (t: { title: string; body?: string; icon: string }) => void;
+  toast: { id: number; title: string; body?: string; icon: QuestIcon } | null;
+  notify: (t: { title: string; body?: string; icon: QuestIcon }) => void;
+
+  // Transient: whether the Jarvis chat is open (its button lives in the HUD toolbar).
+  jarvisOpen: boolean;
+  setJarvis: (open: boolean) => void;
 };
 
 const add = <T,>(list: T[], item: T) => (list.includes(item) ? list : [...list, item]);
@@ -72,6 +77,8 @@ export const useGame = create<GameState>()(
       say: (d) => set({ dialogue: d && { ...d, id: Date.now() + Math.random() } }),
       toast: null,
       notify: (t) => set({ toast: { ...t, id: Date.now() + Math.random() } }),
+      jarvisOpen: false,
+      setJarvis: (jarvisOpen) => set({ jarvisOpen }),
     }),
     {
       name: "mockie-save",

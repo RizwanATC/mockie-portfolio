@@ -186,7 +186,7 @@ function Tariff() {
             }}
           >
             <span className="font-medieval text-lg font-extrabold leading-tight tracking-wide">Park &amp; Pay</span>
-            <span className="mt-1 font-serif text-[11px] italic">Carriages · 2 coppers the hour</span>
+            <span className="mt-1 text-[11px] italic">Carriages · 2 coppers the hour</span>
             <span className="mt-1 font-medieval text-[9px] font-semibold uppercase tracking-[0.2em] text-[#7a5530]">by royal app</span>
           </div>
         </Html>

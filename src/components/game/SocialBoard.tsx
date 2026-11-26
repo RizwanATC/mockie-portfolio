@@ -201,10 +201,10 @@ export default function SocialBoard({ network }: { network: Network }) {
             <span className="mt-4 font-medieval text-2xl font-extrabold tracking-wide">
               {profile.alias}
             </span>
-            <span className="mt-0.5 font-serif text-base italic text-[#6b4a2b]">
+            <span className="mt-0.5 text-base italic text-[#6b4a2b]">
               @{handle}
             </span>
-            <span className="mt-2 font-serif text-sm text-[#7a5530]">
+            <span className="mt-2 text-sm text-[#7a5530]">
               ~ {n.motto} ~
             </span>
 

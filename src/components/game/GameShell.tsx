@@ -10,6 +10,8 @@ import { useGame, type ViewMode } from "@/lib/store";
 import Hud from "./Hud";
 import LevelPanel from "./LevelPanel";
 import Jarvis from "./Jarvis";
+import { Castle } from "lucide-react";
+import { STROKE } from "./icons";
 
 const World = dynamic(() => import("./World"), { ssr: false });
 
@@ -108,9 +110,10 @@ export default function GameShell({ plain }: { plain: React.ReactNode }) {
         {plain}
         <button
           onClick={() => changeMode("3d")}
-          className="fixed bottom-5 right-5 z-50 rounded-full border border-purple-400/40 bg-purple-600/90 px-4 py-2 font-display text-xs font-semibold tracking-wider text-white shadow-lg shadow-purple-900/50 hover:bg-purple-500"
+          className="btn-heraldic fixed bottom-5 right-5 z-50 inline-flex items-center gap-2 px-4 py-2.5 font-display text-base font-bold"
         >
-          ▶ PLAY 3D
+          <Castle size={18} strokeWidth={STROKE} aria-hidden />
+          Enter the 3D kingdom
         </button>
       </>
     );

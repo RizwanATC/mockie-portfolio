@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
+import { BookOpen, Feather, RotateCcw, ScrollText, X } from "lucide-react";
 import { heroes, levels, profile } from "@/data/resume";
 import { achievements, coinIds, topicsFor } from "@/data/quests";
 import { useGame } from "@/lib/store";
 import HeroPicker from "./HeroPicker";
+import { CoinMark, QUEST_ICONS, STROKE } from "./icons";
+
+// the map pulls in the road curve (three.js), so it loads with the world rather than with the page
+const RouteMap = dynamic(() => import("./RouteMap"), { ssr: false });
 
 type Menu = "hero" | "quests" | null;
 
@@ -18,22 +24,21 @@ function Toast() {
     return () => clearTimeout(t);
   }, [toast]);
   if (!toast || expired === toast.id) return null;
+  const Icon = QUEST_ICONS[toast.icon];
   return (
-    <div
-      role="status"
-      key={toast.id}
-      className="absolute bottom-24 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-lg border-2 border-yellow-300/80 bg-black/75 px-4 py-2 shadow-[0_0_24px_rgba(253,224,71,0.35)] backdrop-blur"
-    >
-      <span className="text-2xl">{toast.icon}</span>
-      <div>
-        <p className="text-yellow-300">{toast.title.toUpperCase()}</p>
-        {toast.body && <p className="font-sans text-[11px] font-normal tracking-normal text-white/70">{toast.body}</p>}
+    <div role="status" key={toast.id} className="panel animate-unfurl absolute bottom-[8.5rem] left-1/2 flex -translate-x-1/2 items-center gap-3 py-2 pl-2 pr-4">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 border-oak-deep bg-gilt text-oak-deep">
+        <Icon size={18} strokeWidth={STROKE} aria-hidden />
+      </span>
+      <div className="leading-tight">
+        <p className="font-display text-base font-bold">{toast.title}</p>
+        {toast.body && <p className="text-sm text-ink-soft">{toast.body}</p>}
       </div>
     </div>
   );
 }
 
-// RPG-style dialogue box for whatever an NPC is saying.
+// What an NPC is saying, with the questions a visitor can ask them.
 const NPC_PORTRAIT: Record<string, string> = {
   knight: "/kaykit/portraits/knight.webp",
   barbarian: "/kaykit/portraits/barbarian.webp",
@@ -41,6 +46,14 @@ const NPC_PORTRAIT: Record<string, string> = {
   rogue: "/kaykit/portraits/rogue.webp",
   rogue_hooded: "/kaykit/portraits/rogue.webp",
 };
+
+function Diamond({ filled }: { filled: boolean }) {
+  return (
+    <svg viewBox="0 0 10 10" aria-hidden className="mt-[0.35em] h-2.5 w-2.5 shrink-0">
+      <path d="M5 0.8 9.2 5 5 9.2 0.8 5Z" fill={filled ? "#2c4f86" : "none"} stroke="#2c4f86" strokeWidth="1.4" />
+    </svg>
+  );
+}
 
 function Dialogue() {
   const dialogue = useGame((s) => s.dialogue);
@@ -77,29 +90,30 @@ function Dialogue() {
 
   return (
     <div
+      key={dialogue.id}
       role="dialog"
       aria-label={`${dialogue.name} says`}
-      className="pointer-events-auto absolute left-1/2 top-16 w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border-2 border-amber-900/80 bg-amber-50/95 p-3 text-left shadow-xl"
+      className="panel animate-unfurl pointer-events-auto absolute left-1/2 top-[4.75rem] w-[min(34rem,calc(100vw-2rem))] -translate-x-1/2 p-4 text-left sm:top-20"
     >
       <div className="flex items-start gap-3">
-        <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border-2 border-amber-900/60 bg-slate-800">
-          <Image src={NPC_PORTRAIT[dialogue.who] ?? NPC_PORTRAIT.knight} alt="" fill sizes="48px" className="object-cover" />
+        <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-oak-deep bg-oak shadow-[0_0_0_3px_#d9a531]">
+          <Image src={NPC_PORTRAIT[dialogue.who] ?? NPC_PORTRAIT.knight} alt="" fill sizes="56px" className="object-cover" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] text-amber-700">{dialogue.name.toUpperCase()}</p>
-          <p aria-live="polite" className="mt-0.5 max-h-40 overflow-y-auto font-sans text-sm font-normal normal-case leading-snug tracking-normal text-amber-950">
+          <p className="font-display text-lg font-bold leading-none text-oak">{dialogue.name}</p>
+          <p aria-live="polite" data-lenis-prevent className="mt-1.5 max-h-40 overflow-y-auto text-[17px] leading-snug text-ink">
             <span aria-hidden>{shown}</span>
             <span className="sr-only">{text}</span>
           </p>
           {picked?.links && (
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               {picked.links.map((l) => (
                 <a
                   key={l.href}
                   href={l.href}
                   target={l.href.startsWith("http") ? "_blank" : undefined}
                   rel="noreferrer"
-                  className="rounded border border-amber-900/50 bg-amber-200 px-2 py-1 text-[11px] text-amber-950 hover:bg-amber-300"
+                  className="btn-heraldic px-3 py-1 text-sm font-medium"
                 >
                   {l.label}
                 </a>
@@ -107,25 +121,33 @@ function Dialogue() {
             </div>
           )}
         </div>
-        <button onClick={() => say(null)} aria-label="Close" className="text-amber-800/70 hover:text-amber-950">
-          ✕
+        <button
+          onClick={() => say(null)}
+          aria-label="Close"
+          className="-mr-1 -mt-1 grid h-8 w-8 place-items-center rounded-full text-ink-soft transition-colors hover:bg-vellum-deep hover:text-ink"
+        >
+          <X size={18} strokeWidth={STROKE} aria-hidden />
         </button>
       </div>
       {topics.length > 0 && (
-        <ul className="mt-3 grid gap-1 border-t border-amber-900/20 pt-2">
-          {topics.map((t) => (
-            <li key={t.key}>
-              <button
-                onClick={() => choose(t.key)}
-                className={`w-full rounded px-2 py-1 text-left font-sans text-[13px] font-medium normal-case tracking-normal hover:bg-amber-200 ${
-                  picked?.key === t.key ? "bg-amber-200 text-amber-950" : "text-amber-900"
-                }`}
-              >
-                <span className="mr-1.5 text-amber-600">{picked?.key === t.key ? "▶" : "›"}</span>
-                {t.ask}
-              </button>
-            </li>
-          ))}
+        <ul className="mt-3 grid gap-0.5 border-t border-oak/25 pt-2">
+          {topics.map((t) => {
+            const on = picked?.key === t.key;
+            return (
+              <li key={t.key}>
+                <button
+                  onClick={() => choose(t.key)}
+                  aria-pressed={on}
+                  className={`flex w-full gap-2.5 rounded-md px-2 py-1.5 text-left text-base leading-snug transition-colors ${
+                    on ? "bg-heraldic/10 font-medium text-heraldic-deep" : "text-ink hover:bg-vellum-deep/60"
+                  }`}
+                >
+                  <Diamond filled={on} />
+                  {t.ask}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
@@ -137,104 +159,140 @@ function QuestLog() {
   const coins = useGame((s) => s.coins.length);
   const met = useGame((s) => s.met.length);
   const visited = useGame((s) => s.visited.length);
+  const level = useGame((s) => s.level);
   const reset = useGame((s) => s.resetProgress);
+  // skills are "collected" as you pass each level
+  const satchel = [...new Set(levels.slice(0, level + 1).flatMap((l) => l.stack ?? []))];
   return (
-    <div className="w-72 rounded-lg border border-white/15 bg-black/80 p-4 backdrop-blur">
-      <p className="text-yellow-300">QUEST LOG</p>
-      <p className="mt-1 font-sans text-[11px] font-normal tracking-normal text-white/60">
-        {visited}/{levels.length} levels · {coins}/{coinIds.length} coins · {met} adventurers met
+    <div className="panel w-[min(20rem,calc(100vw-2rem))] p-4">
+      <h2 className="font-display text-xl font-bold leading-none">Quest log</h2>
+      <p className="mt-1.5 text-sm text-ink-soft">
+        {visited} of {levels.length} stops visited, {coins} of {coinIds.length} coins found, {met} adventurers met.
       </p>
-      <ul className="mt-3 space-y-2">
+      <ul data-lenis-prevent className="mt-3 max-h-[46vh] space-y-2.5 overflow-y-auto pr-1">
         {achievements.map((a) => {
           const done = unlocked.includes(a.id);
+          const Icon = QUEST_ICONS[a.icon];
           return (
-            <li key={a.id} className={`flex items-center gap-3 ${done ? "" : "opacity-45"}`}>
-              <span className={`text-xl ${done ? "" : "grayscale"}`}>{a.icon}</span>
-              <div>
-                <p className={done ? "text-white" : "text-white/70"}>{a.title.toUpperCase()}</p>
-                <p className="font-sans text-[11px] font-normal tracking-normal text-white/55">{a.body}</p>
+            <li key={a.id} className="flex items-center gap-3">
+              <span
+                className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 ${
+                  done ? "border-oak-deep bg-gilt text-oak-deep" : "border-dashed border-oak/50 text-oak/50"
+                }`}
+              >
+                <Icon size={17} strokeWidth={STROKE} aria-hidden />
+              </span>
+              <div className="leading-tight">
+                <p className={`font-display text-base font-bold ${done ? "text-ink" : "text-ink-soft"}`}>
+                  {a.title}
+                  <span className="sr-only">{done ? ", unlocked" : ", locked"}</span>
+                </p>
+                <p className="text-sm text-ink-soft">{a.body}</p>
               </div>
             </li>
           );
         })}
       </ul>
-      <button onClick={reset} className="mt-4 text-[10px] text-white/40 underline hover:text-white/70">
-        RESET PROGRESS
+      {satchel.length > 0 && (
+        <div className="mt-4 border-t border-oak/25 pt-3">
+          <h3 className="font-display text-base font-bold leading-none">Satchel</h3>
+          <p className="mt-1 text-sm text-ink-soft">Tools picked up along the road.</p>
+          <ul className="mt-2 flex flex-wrap gap-1.5">
+            {satchel.map((s) => (
+              <li key={s} className="rounded-md border border-oak/40 bg-vellum-deep/50 px-2 py-0.5 text-sm text-ink">
+                {s}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <button onClick={reset} className="mt-4 inline-flex items-center gap-1.5 text-sm text-ink-soft underline-offset-4 hover:text-ink hover:underline">
+        <RotateCcw size={14} strokeWidth={STROKE} aria-hidden />
+        Start a new save
       </button>
     </div>
   );
 }
 
+function ToolButton({ label, onClick, expanded, children }: { label: string; onClick: () => void; expanded?: boolean; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-expanded={expanded}
+      aria-label={label}
+      className={`flex h-9 items-center gap-1.5 rounded-md px-2 text-[15px] font-medium transition-colors hover:bg-white/10 ${expanded ? "bg-white/15" : ""}`}
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function Hud({ onSelect, onPlain }: { onSelect: (i: number) => void; onPlain: () => void }) {
   const level = useGame((s) => s.level);
-  const progress = useGame((s) => s.progress);
   const current = levels[level];
   const coins = useGame((s) => s.coins.length);
   const trophies = useGame((s) => s.achievements.length);
   const heroId = useGame((s) => s.hero);
+  const jarvisOpen = useGame((s) => s.jarvisOpen);
+  const setJarvis = useGame((s) => s.setJarvis);
   const hero = heroes.find((h) => h.id === heroId) ?? heroes[0];
   const [menu, setMenu] = useState<Menu>(null);
-  const toggle = (m: Menu) => setMenu((cur) => (cur === m ? null : m));
-
-  // Skills are "collected" as you pass each level.
-  const collected = [...new Set(levels.slice(0, level + 1).flatMap((l) => l.stack ?? []))];
+  const toggle = (m: Menu) => {
+    setMenu((cur) => (cur === m ? null : m));
+    setJarvis(false);
+  };
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-20 font-display text-xs font-semibold tracking-wider text-white">
-      {/* top bar */}
-      <div className="flex items-center gap-4 px-4 pt-4 sm:px-6">
-        <span className="pointer-events-auto text-purple-300">{profile.alias.toUpperCase()}</span>
-        <span className="rounded px-2 py-1" style={{ background: `${current.color}33`, color: current.color }}>
-          {current.tag}
-        </span>
-        <div className="hidden flex-1 items-center gap-2 sm:flex">
-          <span className="text-white/50">XP</span>
-          <div className="h-2 flex-1 overflow-hidden rounded-sm border border-white/20 bg-white/5">
-            <div
-              className="h-full transition-[width] duration-300"
-              style={{ width: `${progress * 100}%`, background: `linear-gradient(90deg, #7c3aed, ${current.color})` }}
-            />
-          </div>
-          <span className="text-white/50">{current.period?.split(" – ")[0].split(" ").pop() ?? "····"}</span>
+    <div className="pointer-events-none fixed inset-0 z-20 text-ink">
+      <div className="flex items-start justify-between gap-3 p-3 sm:p-5">
+        {/* nameplate: who this is and where you are */}
+        <div className="plank pointer-events-auto hidden px-3.5 py-1.5 leading-tight md:block">
+          <p className="font-display text-xl font-bold leading-none">{profile.alias}</p>
+          <p className="mt-0.5 text-sm text-vellum/80">{current.company ?? current.title}</p>
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          <span title="Coins collected" className="whitespace-nowrap rounded border border-yellow-300/40 bg-black/40 px-2.5 py-1.5 text-yellow-300">
-            🪙 {coins}/{coinIds.length}
+
+        {/* satchel toolbar */}
+        <div className="plank pointer-events-auto ml-auto flex items-center gap-0.5 p-1">
+          <span className="flex h-9 items-center gap-1.5 px-2 text-[15px] font-medium tabular-nums" aria-label={`${coins} of ${coinIds.length} coins found`}>
+            <CoinMark className="h-5 w-5" />
+            {coins}/{coinIds.length}
           </span>
-          <button
-            onClick={() => toggle("quests")}
-            aria-expanded={menu === "quests"}
-            title="Quest log"
-            className="pointer-events-auto whitespace-nowrap rounded border border-white/20 bg-black/40 px-2.5 py-1.5 hover:border-yellow-300"
-          >
-            🏆 {trophies}/{achievements.length}
-          </button>
-          <button
-            onClick={() => toggle("hero")}
-            aria-expanded={menu === "hero"}
-            title="Change hero"
-            className="pointer-events-auto flex items-center gap-2 rounded border border-white/20 bg-black/40 py-1 pl-1 pr-2.5 hover:border-yellow-300"
-          >
-            <span className="relative h-6 w-6 overflow-hidden rounded-full">
-              <Image src={hero.portrait} alt="" fill sizes="24px" className="object-cover" />
+          <ToolButton label={`Quest log, ${trophies} of ${achievements.length} achievements`} onClick={() => toggle("quests")} expanded={menu === "quests"}>
+            <ScrollText size={18} strokeWidth={STROKE} aria-hidden />
+            <span className="tabular-nums">
+              {trophies}/{achievements.length}
             </span>
-            <span className="hidden sm:inline">HERO</span>
-          </button>
-          <button
-            onClick={onPlain}
-            className="pointer-events-auto rounded border border-white/20 bg-black/40 px-3 py-1.5 hover:border-purple-400 hover:text-purple-200"
+          </ToolButton>
+          <ToolButton label={`Change hero, now ${hero.name}`} onClick={() => toggle("hero")} expanded={menu === "hero"}>
+            <span className="relative h-7 w-7 overflow-hidden rounded-full border-2 border-gilt">
+              <Image src={hero.portrait} alt="" fill sizes="28px" className="object-cover" />
+            </span>
+          </ToolButton>
+          <span aria-hidden className="mx-1 h-6 w-px bg-vellum/25" />
+          <ToolButton
+            label="Ask Jarvis"
+            onClick={() => {
+              setMenu(null);
+              setJarvis(!jarvisOpen);
+            }}
+            expanded={jarvisOpen}
           >
-            PLAIN
-          </button>
+            <Feather size={18} strokeWidth={STROKE} aria-hidden />
+            <span className="hidden sm:inline">Ask Jarvis</span>
+          </ToolButton>
+          <ToolButton label="Switch to the plain view" onClick={onPlain}>
+            <BookOpen size={18} strokeWidth={STROKE} aria-hidden />
+            <span className="hidden sm:inline">Plain view</span>
+          </ToolButton>
         </div>
       </div>
 
       {menu && (
-        <div className="pointer-events-auto absolute right-4 top-28 z-30 sm:right-6">
+        <div className="pointer-events-auto absolute right-3 top-[4.25rem] z-30 sm:right-5 sm:top-20">
           {menu === "quests" ? (
             <QuestLog />
           ) : (
-            <div className="rounded-lg border border-white/15 bg-black/80 p-4 backdrop-blur">
+            <div className="panel p-4">
               <HeroPicker compact />
             </div>
           )}
@@ -244,36 +302,9 @@ export default function Hud({ onSelect, onPlain }: { onSelect: (i: number) => vo
       <Dialogue />
       <Toast />
 
-      {/* level select minimap */}
-      <nav aria-label="Level select" className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
-        {levels.map((l, i) => (
-          <button
-            key={l.id}
-            onClick={() => onSelect(i)}
-            title={`${l.tag} · ${l.title}`}
-            aria-label={`${l.tag} ${l.title}`}
-            aria-current={i === level}
-            className="pointer-events-auto h-3 w-3 rounded-sm border border-white/30 transition-all hover:scale-125"
-            style={{
-              background: i <= level ? l.color : "transparent",
-              boxShadow: i === level ? `0 0 10px ${l.color}` : undefined,
-              transform: i === level ? "scale(1.3)" : undefined,
-            }}
-          />
-        ))}
-      </nav>
-
-      {/* inventory */}
-      {collected.length > 0 && (
-        <div className="absolute bottom-12 right-4 hidden max-w-[16rem] flex-wrap justify-end gap-1.5 sm:flex">
-          <span className="w-full text-right text-white/40">INVENTORY</span>
-          {collected.map((s) => (
-            <span key={s} className="rounded border border-white/15 bg-black/50 px-2 py-1 text-[11px] text-white/80">
-              {s}
-            </span>
-          ))}
-        </div>
-      )}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 sm:bottom-4">
+        <RouteMap onSelect={onSelect} />
+      </div>
     </div>
   );
 }
