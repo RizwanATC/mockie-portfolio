@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import { Cinzel, Inter, Space_Grotesk } from "next/font/google";
+import { Alegreya_SC, Alegreya_Sans } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
-const display = Space_Grotesk({ subsets: ["latin"], variable: "--font-display" });
-// notice-board lettering on the title screen
-const medieval = Cinzel({ subsets: ["latin"], weight: ["600", "800"], variable: "--font-medieval" });
+// One family in two voices: Alegreya SC for the kingdom's lettering, Alegreya Sans for reading and controls.
+const display = Alegreya_SC({ subsets: ["latin"], weight: ["500", "700", "800"], variable: "--font-alegreya-sc" });
+const sans = Alegreya_Sans({ subsets: ["latin"], weight: ["400", "500", "700"], style: ["normal", "italic"], variable: "--font-alegreya-sans" });
 
 export const metadata: Metadata = {
   title: "Rizwan (Mockie) — Mobile Developer & UI/UX Designer",
@@ -22,8 +21,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="h-full">
-      <body className={`${inter.className} ${display.variable} ${medieval.variable} min-h-full bg-[#08080f] text-white antialiased`}>
+    <html lang="en" className={`h-full ${sans.variable} ${display.variable}`}>
+      <body className="min-h-full font-sans antialiased">
         {children}
       </body>
     </html>

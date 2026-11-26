@@ -225,25 +225,27 @@ export function topicsFor(levelIndex: number): Topic[] {
       key: "apps",
       ask: "Can I see the app?",
       reply: shipped.map((a) => `${a.name}: ${a.tagline}.`).join(" ") + " Tap the phones on this stage to flip through screenshots.",
-      links: shipped.filter((a) => a.href).map((a) => ({ label: `${a.name} ↗`, href: a.href! })),
+      links: shipped.filter((a) => a.href).map((a) => ({ label: a.name, href: a.href! })),
     });
   return out;
 }
 
 export type Progress = { coins: string[]; met: string[]; visited: number[]; heroesTried: string[]; achievements: string[]; asked: string[] };
 
-export const achievements: { id: string; icon: string; title: string; body: string; done: (p: Progress, levels: number) => boolean }[] = [
-  { id: "first-steps", icon: "🥾", title: "First Steps", body: "Leave the village for LV.1.", done: (p) => p.visited.includes(1) },
-  { id: "first-coin", icon: "🪙", title: "Shiny!", body: "Pick up your first coin.", done: (p) => p.coins.length > 0 },
-  { id: "chatty", icon: "💬", title: "Small Talk", body: "Ask an adventurer a question.", done: (p) => p.met.length > 0 },
-  { id: "curious", icon: "❓", title: "Curious Mind", body: "Ask the adventurers 5 questions.", done: (p) => p.asked.length >= 5 },
-  { id: "explorer", icon: "🗺️", title: "Explorer", body: "Visit every level.", done: (p, levels) => p.visited.length >= levels },
-  { id: "treasure", icon: "💰", title: "Treasure Hunter", body: `Collect all ${coinIds.length} coins.`, done: (p) => coinIds.every((c) => p.coins.includes(c)) },
-  { id: "social", icon: "🤝", title: "Party Animal", body: `Talk to all ${npcCount} adventurers.`, done: (p) => p.met.length >= npcCount },
-  { id: "shapeshifter", icon: "🎭", title: "Shapeshifter", body: "Play as 3 different heroes.", done: (p) => p.heroesTried.length >= 3 },
+export type QuestIcon = "steps" | "coin" | "talk" | "ask" | "map" | "treasure" | "party" | "masks" | "crown";
+
+export const achievements: { id: string; icon: QuestIcon; title: string; body: string; done: (p: Progress, levels: number) => boolean }[] = [
+  { id: "first-steps", icon: "steps", title: "First Steps", body: "Leave the village for LV.1.", done: (p) => p.visited.includes(1) },
+  { id: "first-coin", icon: "coin", title: "Shiny!", body: "Pick up your first coin.", done: (p) => p.coins.length > 0 },
+  { id: "chatty", icon: "talk", title: "Small Talk", body: "Ask an adventurer a question.", done: (p) => p.met.length > 0 },
+  { id: "curious", icon: "ask", title: "Curious Mind", body: "Ask the adventurers 5 questions.", done: (p) => p.asked.length >= 5 },
+  { id: "explorer", icon: "map", title: "Explorer", body: "Visit every level.", done: (p, levels) => p.visited.length >= levels },
+  { id: "treasure", icon: "treasure", title: "Treasure Hunter", body: `Collect all ${coinIds.length} coins.`, done: (p) => coinIds.every((c) => p.coins.includes(c)) },
+  { id: "social", icon: "party", title: "Party Animal", body: `Talk to all ${npcCount} adventurers.`, done: (p) => p.met.length >= npcCount },
+  { id: "shapeshifter", icon: "masks", title: "Shapeshifter", body: "Play as 3 different heroes.", done: (p) => p.heroesTried.length >= 3 },
   {
     id: "legend",
-    icon: "👑",
+    icon: "crown",
     title: "Legend",
     body: "Unlock every other achievement.",
     done: (p) => achievements.every((a) => a.id === "legend" || p.achievements.includes(a.id)),

@@ -48,7 +48,7 @@ function Coin({ id, position, level }: { id: string; position: [number, number, 
     const s = useGame.getState();
     s.collect(id);
     const n = useGame.getState().coins.length;
-    s.notify({ icon: "🪙", title: "+1 coin", body: `${n}/${coinIds.length} found` });
+    s.notify({ icon: "coin", title: "+1 coin", body: `${n}/${coinIds.length} found` });
   };
 
   return (
