@@ -2,28 +2,33 @@
 
 import { useEffect, useRef, useState } from "react";
 import { profile, type Level } from "@/data/resume";
+import { FileText, Footprints, Mail } from "lucide-react";
+import { GitHubLogoIcon, LinkedInLogoIcon } from "@radix-ui/react-icons";
 import HeroPicker from "./HeroPicker";
+import { STROKE } from "./icons";
 
-const SCREEN_CARD = "max-w-xl rounded-xl border border-white/10 bg-black/45 p-6 backdrop-blur-sm sm:p-8";
+const SCREEN = "panel w-full max-w-lg p-6 sm:p-8";
 
 function TitleScreen({ onStart }: { onStart: () => void }) {
   return (
-    <div className={SCREEN_CARD}>
-      <p className="font-display text-sm font-semibold tracking-[0.3em] text-purple-300">{profile.name.toUpperCase()}</p>
-      <h1 className="mt-3 font-display text-6xl font-bold leading-none tracking-tight text-white drop-shadow-[0_0_24px_rgba(168,85,247,0.6)] sm:text-8xl">
-        {profile.alias.toUpperCase()}
-      </h1>
-      <p className="mt-6 text-lg text-white/70">
-        {profile.title} · {profile.location}
+    <div className={SCREEN}>
+      <h1 className="font-display text-7xl font-extrabold leading-[0.85] tracking-[-0.01em] text-oak-deep sm:text-8xl">{profile.alias}</h1>
+      <p className="mt-4 text-xl leading-snug text-ink">
+        <span className="font-bold">{profile.name}</span>
+        <br />
+        {profile.title} in {profile.location.replace(", MY", ", Malaysia")}
       </p>
-      <p className="mt-2 text-white/50">{profile.motto}</p>
-      <div className="mt-8">
+      <p className="mt-1 text-lg italic text-ink-soft">{profile.motto}</p>
+      <div className="mt-6 border-t border-oak/25 pt-5">
         <HeroPicker />
       </div>
-      <button onClick={onStart} className="mt-8 animate-pulse font-display text-base font-semibold tracking-[0.25em] text-yellow-300 hover:text-yellow-200">
-        ▶ PRESS START
-      </button>
-      <p className="mt-3 text-xs text-white/30">or scroll</p>
+      <div className="mt-7 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <button onClick={onStart} className="btn-heraldic inline-flex items-center gap-2 px-5 py-2.5 font-display text-lg font-bold">
+          <Footprints size={20} strokeWidth={STROKE} aria-hidden />
+          Begin the journey
+        </button>
+        <span className="text-base text-ink-soft">or scroll down the road</span>
+      </div>
     </div>
   );
 }
@@ -54,28 +59,39 @@ function ContinueScreen() {
   }, [running, count]);
 
   const links = [
-    { label: "EMAIL", href: `mailto:${profile.email}` },
-    { label: "LINKEDIN", href: profile.linkedin },
-    { label: "GITHUB", href: profile.github },
-    { label: "RESUME", href: "/resume/resume.pdf" },
+    { label: "LinkedIn", href: profile.linkedin, icon: <LinkedInLogoIcon className="h-[18px] w-[18px]" aria-hidden /> },
+    { label: "GitHub", href: profile.github, icon: <GitHubLogoIcon className="h-[18px] w-[18px]" aria-hidden /> },
+    { label: "Résumé", href: "/resume/resume.pdf", icon: <FileText size={18} strokeWidth={STROKE} aria-hidden /> },
   ];
 
   return (
-    <div ref={ref} className={SCREEN_CARD}>
-      <h2 className="font-display text-5xl font-bold tracking-tight text-white sm:text-6xl">CONTINUE?</h2>
-      <p className="mt-4 font-display text-8xl font-bold text-yellow-300 tabular-nums" aria-live="polite">
-        {count}
-      </p>
-      <p className="mt-6 text-white/60">Insert coin: let&apos;s build something.</p>
-      <div className="mt-8 grid grid-cols-2 gap-3">
+    <div ref={ref} className={SCREEN}>
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="font-display text-5xl font-extrabold leading-none text-oak-deep sm:text-7xl">Continue?</h2>
+        {/* the countdown sits on a gold coin: insert one to keep playing */}
+        <p
+          aria-live="polite"
+          aria-label={`${count} seconds`}
+          className="grid h-20 w-20 shrink-0 place-items-center rounded-full border-[3px] border-oak-deep bg-gilt font-display text-5xl sm:h-24 sm:w-24 sm:text-6xl font-extrabold tabular-nums text-oak-deep shadow-[inset_0_0_0_5px_#f0c75a,inset_0_0_0_7px_rgb(61_38_22/0.35),0_10px_20px_-8px_rgb(43_28_18/0.6)]"
+        >
+          {count}
+        </p>
+      </div>
+      <p className="mt-5 text-xl text-ink">Insert coin: let&apos;s build something.</p>
+      <a href={`mailto:${profile.email}`} className="btn-heraldic mt-6 flex items-center justify-center gap-2 px-5 py-3 font-display text-lg font-bold">
+        <Mail size={20} strokeWidth={STROKE} aria-hidden />
+        Email Mockie
+      </a>
+      <div className="mt-3 grid grid-cols-3 gap-2">
         {links.map((l) => (
           <a
             key={l.label}
             href={l.href}
             target={l.href.startsWith("http") ? "_blank" : undefined}
             rel="noreferrer"
-            className="rounded border border-purple-400/40 bg-purple-600/20 px-4 py-3 text-center font-display text-xs font-semibold tracking-wider text-white backdrop-blur hover:bg-purple-600/50"
+            className="plank flex items-center justify-center gap-1.5 px-2 py-2.5 text-base font-medium transition-transform duration-150 ease-out-expo hover:-translate-y-px active:translate-y-px"
           >
+            {l.icon}
             {l.label}
           </a>
         ))}
@@ -114,7 +130,7 @@ export default function LevelPanel({ level, index, onStart }: { level: Level; in
       id={`level-${level.id}`}
       aria-label={level.title}
       // click-through so the 3D world behind (phones, character) stays interactive; content opts back in
-      className="pointer-events-none flex min-h-[120vh] items-end px-5 pb-16 sm:items-center sm:px-12 sm:pb-0 lg:px-20 [&>*]:pointer-events-auto"
+      className="pointer-events-none flex min-h-[120vh] items-end px-4 pb-32 sm:items-center sm:px-12 sm:pb-0 lg:px-20 [&>*]:pointer-events-auto"
       data-level={index}
     >
       {level.id === "start" ? (

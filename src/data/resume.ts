@@ -14,11 +14,11 @@ export type Hero = {
 };
 
 export const heroes: Hero[] = [
-  { id: "archer", name: "Archer", role: "Ranged · patient", url: "/models/kaykit/hero-archer.glb", portrait: "/kaykit/portraits/archer.webp", scale: 0.8 },
-  { id: "knight", name: "Knight", role: "Tank · reliable", url: "/models/kaykit/hero-knight.glb", portrait: "/kaykit/portraits/knight.webp", scale: 0.8 },
-  { id: "mage", name: "Mage", role: "Caster · clever", url: "/models/kaykit/hero-mage.glb", portrait: "/kaykit/portraits/mage.webp", scale: 0.8 },
-  { id: "barbarian", name: "Barbarian", role: "Bruiser · bold", url: "/models/kaykit/hero-barbarian.glb", portrait: "/kaykit/portraits/barbarian.webp", scale: 0.8 },
-  { id: "rogue", name: "Rogue", role: "Agile · quick", url: "/models/kaykit/hero-rogue.glb", portrait: "/kaykit/portraits/rogue.webp", scale: 0.8 },
+  { id: "archer", name: "Archer", role: "Ranged and patient", url: "/models/kaykit/hero-archer.glb", portrait: "/kaykit/portraits/archer.webp", scale: 0.8 },
+  { id: "knight", name: "Knight", role: "Sturdy and reliable", url: "/models/kaykit/hero-knight.glb", portrait: "/kaykit/portraits/knight.webp", scale: 0.8 },
+  { id: "mage", name: "Mage", role: "Clever with spells", url: "/models/kaykit/hero-mage.glb", portrait: "/kaykit/portraits/mage.webp", scale: 0.8 },
+  { id: "barbarian", name: "Barbarian", role: "Bold up close", url: "/models/kaykit/hero-barbarian.glb", portrait: "/kaykit/portraits/barbarian.webp", scale: 0.8 },
+  { id: "rogue", name: "Rogue", role: "Quick and agile", url: "/models/kaykit/hero-rogue.glb", portrait: "/kaykit/portraits/rogue.webp", scale: 0.8 },
   { id: "mockie", name: "Mockie", role: "The real one", url: "/models/mock.glb", portrait: "/profile/avatar.jpg", scale: 1.3 },
 ];
 export const DEFAULT_HERO = "archer";
